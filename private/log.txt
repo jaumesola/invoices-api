@@ -1,3 +1,6 @@
 
- meteor create --bare .
+ $ meteor create --bare .
+ 
+ $ meteor add nimble:restivus
+ 
  
