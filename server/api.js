@@ -1,17 +1,12 @@
-/*
- * Minimal example just to verify installation
- *
- * Sample URLs:
- * 
- * /api/articles -- return all
- * /api/articles/HnmLBZz8ab9LrPuJ7 -- return one (using id from list)
- * /api/articles/whatever-not-an-id -- return 404
- */
 
-Articles = new Mongo.Collection('articles');
+let mongoDbUrl    = "mongodb://localhost:3001/meteor";
+let mongoOplogUrl = "mongodb://localhost:3001/local";
 
-Articles.insert({sku: "AAA123", description: "Some Article"});
-Articles.insert({sku: "BBB456", description: "Another Article"});
+let driver = new MongoInternals.RemoteCollectionDriver(
+    mongoDbUrl, { oplogUrl: mongoOplogUrl }
+    );
+
+Offers = new Mongo.Collection("offers", {_driver: driver});
 
 // Global API configuration
 var Api = new Restivus({
@@ -19,6 +14,4 @@ var Api = new Restivus({
     prettyJson: true
     });
 
-// Generates: GET, POST on /api/articles and GET, PUT, PATCH, DELETE on
-// /api/articles/:id for the Articles collection
-Api.addCollection(Articles);
+Api.addCollection(Offers);
