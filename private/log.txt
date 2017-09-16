@@ -3,4 +3,5 @@
  
  $ meteor add nimble:restivus
  
+ $ meteor npm install --save bcrypt
  
