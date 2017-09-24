@@ -1,13 +1,11 @@
+console.log('STARTUP WITH ' + Meteor.settings.public.environment + ' SETTINGS');
+
 if (Meteor.settings.public.environment == 'staging') {
     Offers = new Mongo.Collection("offers");
 } else {
-    let mongoDbUrl    = "mongodb://localhost:3001/meteor";
-    let mongoOplogUrl = "mongodb://localhost:3001/local";
-
     let driver = new MongoInternals.RemoteCollectionDriver(
-            mongoDbUrl, { oplogUrl: mongoOplogUrl }
+            Meteor.settings.mongoDbUrl, { oplogUrl: Meteor.settings.mongoOplogUrl }
         );
-
     Offers = new Mongo.Collection("offers", {_driver: driver});
 }
 
