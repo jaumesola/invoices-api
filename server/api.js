@@ -1,13 +1,17 @@
 console.log('STARTUP WITH ' + Meteor.settings.public.environment + ' SETTINGS');
 
-if (Meteor.settings.public.environment == 'staging') {
-    Offers = new Mongo.Collection("offers");
-} else {
+collectionOptions = {};
+
+if (Meteor.settings.public.environment == 'development') {
     let driver = new MongoInternals.RemoteCollectionDriver(
             Meteor.settings.mongoDbUrl, { oplogUrl: Meteor.settings.mongoOplogUrl }
         );
-    Offers = new Mongo.Collection("offers", {_driver: driver});
+    collectionOptions = {_driver: driver};
 }
+
+Statuses = new Mongo.Collection("statuses", collectionOptions);
+Offers = new Mongo.Collection("offers", collectionOptions);
+
 
 // Global API configuration
 var Api = new Restivus({
@@ -16,4 +20,4 @@ var Api = new Restivus({
     prettyJson: true
     });
 
-Api.addCollection(Offers);
+Api.addCollection(Statuses);
