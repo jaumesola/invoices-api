@@ -23,9 +23,10 @@ Advances = newCollection("advances");
 
 // Global API configuration
 var Api = new Restivus({
-    apiPath: 'v1/',
+    apiPath: '/',
     useDefaultAuth: true,
-    prettyJson: true
+    prettyJson: true,
+    version: 'v1'
     });
 
 Api.addCollection(Statuses);
