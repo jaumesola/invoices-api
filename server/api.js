@@ -29,4 +29,6 @@ var Api = new Restivus({
     version: 'v1'
     });
 
-Api.addCollection(Statuses);
+Api.addCollection(Statuses, {
+    excludedEndpoints: ['get','post','put','patch','delete'], // generate only getAll endpoint
+    });
