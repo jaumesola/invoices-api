@@ -1,6 +1,4 @@
 {
-    "mongoDbUrl": "mongodb://localhost:3001/meteor",
-    "mongoOplogUrl": "mongodb://localhost:3001/local",
     "public": {
         "environment": "development"
     }
