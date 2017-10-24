@@ -23,3 +23,34 @@ Api.addCollection(Settings, {
 Api.addCollection(Statuses, {
     excludedEndpoints: ['get','post','put','patch','delete'], // generate only getAll endpoint
     });
+
+///v1/advances
+Api.addCollection(Advances, {
+    excludedEndpoints: ['put','patch','delete'], // getAll, get, post TODO disable getAll
+    });
+
+
+Api.addRoute('offers/:id', {}, {
+    get: { 
+        action: function () {
+            return {status: 'success', data: Offers.findOne(this.urlParams.id)};
+      },
+    }
+});
+
+Api.addRoute('offers', {}, {
+    get: {
+        action: function () {
+            return {status: 'success', data: Offers.find().fetch()};
+        }
+    },
+    
+    post: function () {
+        let OfferAmount = Math.round(this.bodyParams.InvoiceAmount * 0.9);
+        let offerId = Offers.insert({InvoiceAmount: this.bodyParams.InvoiceAmount, OfferAmount});
+        let offer = Offers.find({_id: offerId}).fetch();
+        return {status: 'success', data: offer};
+      },
+  });
+
+
