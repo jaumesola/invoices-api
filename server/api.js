@@ -6,19 +6,24 @@ Companies = new Mongo.Collection("companies");
 Offers    = new Mongo.Collection("offers");
 Advances  = new Mongo.Collection("advances");
 
-// local settings (configuration parameters)
-let doc = Settings.find({}, { fields: {Local:1} }).fetch();
-localSettings = doc[0]["Local"];
-console.log("local settings:")
-console.log(localSettings);
-// TODO check required settings exist
+// settings global var for internal use 
+
+let settings = Settings.find().fetch()[0];
+//console.log("settings:"); console.log(settings);
+
+if (!settings['Local']['monthlyFactoringRate']) {
+    console.log("MISSING SETTING Local monthlyFactoringRate");
+}
 
 // some utility functions
+
 function daysDiff(firstDate, secondDate) {
-    return Math.round((secondDate-firstDate)/(1000*60*60*24));
+    let oneDay = 24*60*60*1000; // hours*minutes*seconds*milliseconds
+    return Math.round((secondDate.getTime()-firstDate.getTime()) / oneDay);
 }
 
 // Global API configuration
+
 var Api = new Restivus({
     apiPath: '/',
     useDefaultAuth: true,
@@ -26,7 +31,9 @@ var Api = new Restivus({
     version: 'v1'
     });
 
-///v1/settings
+
+// SETTINGS
+
 Api.addRoute('settings', {}, {
     get: {
         action: function () {
@@ -38,10 +45,15 @@ Api.addRoute('settings', {}, {
     },
 });
 
-// /v1/statuses
+
+// STATUSES
+
 Api.addCollection(Statuses, {
     excludedEndpoints: ['get','post','put','patch','delete'], // generate only getAll endpoint
     });
+
+
+// OFFERS
 
 Api.addRoute('offers/:id', {}, {
     get: { 
@@ -60,22 +72,37 @@ Api.addRoute('offers', {}, {
     },
     */
     
-    // sample test:  curl -X POST http://localhost:4000/v1/offers -d "InvoiceAmount=777"
+    // sample test:  curl -X POST http://localhost:4000/v1/offers -d "InvoiceAmount=888" -d "InvoiceMaturity=2018-09-31"
     post: function () { // TODO add InvoiceMaturity & OfferDate
+        // fields from remote client
         let InvoiceAmount = Number(this.bodyParams.InvoiceAmount);
-        let OfferAmount = Math.round(this.bodyParams.InvoiceAmount * 0.9); // TODO % config * days until maturity
+        let InvoiceMaturity = new Date(this.bodyParams.InvoiceMaturity);
+        console.log(InvoiceMaturity);
+        
+        // calculated fields
+        let OfferDate = new Date(); // today
+        
+        let days = daysDiff(OfferDate, InvoiceMaturity);       
+        let dailyRate = settings['Local']['monthlyFactoringRate'] / 100 / 30;
+        let OfferAmount = Math.round(InvoiceAmount * (1 - days * dailyRate));
+        console.log("invoice amount " + InvoiceAmount + " days " + days + " daily rate " + dailyRate + " --> offer amount " + OfferAmount);
+
         let Status = 'OFFER_OK'; // TODO if all filters passed, otherwise NOT_NOW
-        let offerId = Offers.insert({InvoiceAmount, OfferAmount, Status});
+        
+        // save offer & return it   
+        let offerId = Offers.insert({InvoiceAmount, InvoiceMaturity, OfferAmount, OfferDate, Status});
         let offer = Offers.findOne({_id: offerId});
         return {status: 'success', data: offer};
       },
   });
 
 
-// Retrieve PARTIAL advance data, the most relevant is the status, other data just for verification
+// ADVANCES
+
 Api.addRoute('advances/:id', {}, {
     get: {
         action: function () {
+            // Retrieve PARTIAL advance data, the most relevant is the status, other data just for verification
             let fields = ['Status','CreditorId','DebtorId','InvoiceAmount'];
             let field = null;
             let doc = Advances.findOne(this.urlParams.id);
@@ -89,7 +116,6 @@ Api.addRoute('advances/:id', {}, {
     }
 });
 
-// /v1/advances
 Api.addRoute('advances', {}, {
     /*
     get: {
