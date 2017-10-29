@@ -6,6 +6,18 @@ Companies = new Mongo.Collection("companies");
 Offers    = new Mongo.Collection("offers");
 Advances  = new Mongo.Collection("advances");
 
+// local settings (configuration parameters)
+let doc = Settings.find({}, { fields: {Local:1} }).fetch();
+localSettings = doc[0]["Local"];
+console.log("local settings:")
+console.log(localSettings);
+// TODO check required settings exist
+
+// some utility functions
+function daysDiff(firstDate, secondDate) {
+    return Math.round((secondDate-firstDate)/(1000*60*60*24));
+}
+
 // Global API configuration
 var Api = new Restivus({
     apiPath: '/',
@@ -15,9 +27,16 @@ var Api = new Restivus({
     });
 
 ///v1/settings
-Api.addCollection(Settings, {
-    excludedEndpoints: ['get','post','put','patch','delete'], // generate only getAll endpoint
-    });
+Api.addRoute('settings', {}, {
+    get: {
+        action: function () {
+            return {
+                status: 'success', 
+                data: Settings.find({}, { fields: {Local:0} }).fetch()
+                };
+        }
+    },
+});
 
 // /v1/statuses
 Api.addCollection(Statuses, {
@@ -51,6 +70,7 @@ Api.addRoute('offers', {}, {
         return {status: 'success', data: offer};
       },
   });
+
 
 // Retrieve PARTIAL advance data, the most relevant is the status, other data just for verification
 Api.addRoute('advances/:id', {}, {
