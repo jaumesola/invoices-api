@@ -22,6 +22,15 @@ function daysDiff(firstDate, secondDate) {
     return Math.round((secondDate.getTime()-firstDate.getTime()) / oneDay);
 }
 
+function offerAmount(OfferDate, InvoiceMaturity, InvoiceAmount) {
+    let days = daysDiff(OfferDate, InvoiceMaturity);       
+    let dailyRate = settings['Local']['monthlyFactoringRate'] / 100 / 30;
+    let OfferAmount = Math.round(InvoiceAmount * (1 - days * dailyRate));
+    console.log("invoice amount " + InvoiceAmount + " days " + days + " daily rate " + dailyRate + " --> offer amount " + OfferAmount);
+    return OfferAmount;
+}
+
+
 // Global API configuration
 
 var Api = new Restivus({
@@ -77,15 +86,16 @@ Api.addRoute('offers', {}, {
         // fields from remote client
         let InvoiceAmount = Number(this.bodyParams.InvoiceAmount);
         let InvoiceMaturity = new Date(this.bodyParams.InvoiceMaturity);
+        InvoiceMaturity.setUTCHours(12,0,0,0); // TODO DRY (advances)
         console.log(InvoiceMaturity);
         
         // calculated fields
-        let OfferDate = new Date(); // today
         
-        let days = daysDiff(OfferDate, InvoiceMaturity);       
-        let dailyRate = settings['Local']['monthlyFactoringRate'] / 100 / 30;
-        let OfferAmount = Math.round(InvoiceAmount * (1 - days * dailyRate));
-        console.log("invoice amount " + InvoiceAmount + " days " + days + " daily rate " + dailyRate + " --> offer amount " + OfferAmount);
+        // today at noon UTC
+        let OfferDate = new Date(); // TODO DRY (advances)
+        OfferDate.setUTCHours(12,0,0,0);
+        
+        let OfferAmount = offerAmount(OfferDate, InvoiceMaturity, InvoiceAmount);
 
         let Status = 'OFFER_OK'; // TODO if all filters passed, otherwise NOT_NOW
         
@@ -136,15 +146,30 @@ Api.addRoute('advances', {}, {
             doc[field] = this.bodyParams[field];
         }
         
-        doc['Status'] = 'CLEAR_RISK';
-        doc['AdvanceAmount'] = Number(this.bodyParams.AdvanceAmount);
         doc['InvoiceAmount'] = Number(this.bodyParams.InvoiceAmount);
-        doc['AdvanceDate'] = Date(this.bodyParams.AdvanceDate);
-        doc['InvoiceMaturity'] = Date(this.bodyParams.InvoiceMaturity);
-        console.log(this.bodyParams.CreditorData);
-        doc['CreditorData'] = JSON.parse(this.bodyParams.CreditorData);
-        doc['DebtorData'] = JSON.parse(this.bodyParams.DebtorData);
-        doc['InvoiceData'] = JSON.parse(this.bodyParams.InvoiceData);
+        
+        let InvoiceMaturity = new Date(this.bodyParams.InvoiceMaturity);
+        InvoiceMaturity.setUTCHours(12,0,0,0); // TODO DRY (offers)   
+        doc['InvoiceMaturity'] = InvoiceMaturity;
+
+        
+        //console.log(this.bodyParams.CreditorData);
+        //doc['CreditorData'] = JSON.parse(this.bodyParams.CreditorData);
+        //doc['DebtorData'] = JSON.parse(this.bodyParams.DebtorData);
+        //doc['InvoiceData'] = JSON.parse(this.bodyParams.InvoiceData);
+        
+        // calculated fields
+        
+        // today at noon UTC // TODO DRY (offers)
+        let AdvanceDate = new Date();
+        AdvanceDate.setUTCHours(12,0,0,0);
+        doc['AdvanceDate'] = AdvanceDate;
+        
+        doc['AdvanceAmount'] = offerAmount(AdvanceDate, InvoiceMaturity, doc['InvoiceAmount']);
+        
+        doc['Status'] = 'SEND_CREDITOR_EMAIL';
+        doc['StatusMessage'] = 'Recibir&aacute;s email con instrucciones';
+        
 
         let advanceId = Advances.insert(doc);
         let advance = Advances.findOne({_id: advanceId});
