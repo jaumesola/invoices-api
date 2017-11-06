@@ -17,6 +17,15 @@ if (!settings['Local']['monthlyFactoringRate']) {
 
 // some utility functions
 
+function statusMessage(statusCode) {
+    let message = statusCode;
+    let status = Statuses.findOne({code: statusCode});
+    if (status && status.message) {
+        message = status.message;
+    }
+    return message;
+}
+
 function daysDiff(firstDate, secondDate) {
     let oneDay = 24*60*60*1000; // hours*minutes*seconds*milliseconds
     return Math.round((secondDate.getTime()-firstDate.getTime()) / oneDay);
@@ -53,14 +62,6 @@ Api.addRoute('settings', {}, {
         }
     },
 });
-
-
-// STATUSES
-
-Api.addCollection(Statuses, {
-    excludedEndpoints: ['get','post','put','patch','delete'], // generate only getAll endpoint
-    });
-
 
 // OFFERS
 
@@ -113,7 +114,7 @@ Api.addRoute('advances/:id', {}, {
     get: {
         action: function () {
             // Retrieve PARTIAL advance data, the most relevant is the status, other data just for verification
-            let fields = ['Status','CreditorId','DebtorId','InvoiceAmount'];
+            let fields = ['Status','CreditorId','DebtorId','InvoiceNumber','InvoiceAmount'];
             let field = null;
             let doc = Advances.findOne(this.urlParams.id);
             let apidoc = {};
@@ -121,6 +122,7 @@ Api.addRoute('advances/:id', {}, {
                 field = fields[i]
                 apidoc[field] = doc[field];
             }
+            apidoc['StatusMessage'] = statusMessage(doc['Status']);
             return {status: 'success', data: apidoc};
       },
     }
@@ -135,28 +137,32 @@ Api.addRoute('advances', {}, {
     },
     */
     
-    // sample test:  curl -X POST http://localhost:4000/v1/advances -d "InvoiceAmount=777" -d "CreditorTaxId=AAABBBCCC"  -d "DebtorTaxId=AAABBBCCC"
+    // sample test: curl -X POST http://localhost:4000/v1/advances -d "InvoiceAmount=777" -d "CreditorTaxId=AAABBBCCC"  -d "DebtorTaxId=AAABBBCCC" -d 'CollectionData={"aaa":"bbb","ccc":"ddd"}'
     post: function () { // TODO add InvoiceMaturity & OfferDate
         let doc = {};
+        let params = this.bodyParams;
+        let loop = function (fields, callback) {
+            let field = null;
+            for (let i = 0; i < fields.length; i++) {
+                field = fields[i];
+                if (params[field]) {
+                    doc[field] = callback(params[field]);
+                }
+            }
+        }       
         
-        let stringFields = ['OfferId','Status','CreditorTaxId','CreditorName','DebtorTaxId','DebtorName'];
-        let field = null;
-        for (let i = 0; i < stringFields.length; i++) {
-            field = stringFields[i];
-            doc[field] = this.bodyParams[field];
-        }
+        let stringFields = ['OfferId','Status','CreditorTaxId','CreditorName','DebtorTaxId','DebtorName',
+            'InvoiceNumber','PaymentMethodId','PaymentMethodName'];
+        loop(stringFields, function (value) {return value} );
         
-        doc['InvoiceAmount'] = Number(this.bodyParams.InvoiceAmount);
+        let objectFields = ['CollectionData','InvoiceData','CreditorData','DebtorData'];
+        loop(objectFields, function (value) {return JSON.parse(value)} );
         
-        let InvoiceMaturity = new Date(this.bodyParams.InvoiceMaturity);
-        InvoiceMaturity.setUTCHours(12,0,0,0); // TODO DRY (offers)   
+        doc['InvoiceAmount'] = Number(params.InvoiceAmount);
+        
+        let InvoiceMaturity = new Date(params.InvoiceMaturity);
+        InvoiceMaturity.setUTCHours(12,0,0,0); // TODO DRY (offers)
         doc['InvoiceMaturity'] = InvoiceMaturity;
-
-        
-        //console.log(this.bodyParams.CreditorData);
-        //doc['CreditorData'] = JSON.parse(this.bodyParams.CreditorData);
-        //doc['DebtorData'] = JSON.parse(this.bodyParams.DebtorData);
-        //doc['InvoiceData'] = JSON.parse(this.bodyParams.InvoiceData);
         
         // calculated fields
         
@@ -167,10 +173,13 @@ Api.addRoute('advances', {}, {
         
         doc['AdvanceAmount'] = offerAmount(AdvanceDate, InvoiceMaturity, doc['InvoiceAmount']);
         
-        doc['Status'] = 'SEND_CREDITOR_EMAIL';
-        doc['StatusMessage'] = 'Recibir&aacute;s email con instrucciones';
+        if ( doc['AdvanceAmount'] != params['AdvanceAmount'] ) {
+            console.log("Amount changed! offer " + params['AdvanceAmount'] + " advance " + doc['AdvanceAmount'] );
+        }
         
-
+        doc['Status'] = 'REQUEST_RECEIVED';
+        doc['StatusMessage'] = statusMessage(doc['Status']);
+        
         let advanceId = Advances.insert(doc);
         let advance = Advances.findOne({_id: advanceId});
         return {status: 'success', data: advance};
