@@ -137,6 +137,7 @@ Api.addRoute('advances', {}, {
     },
     */
     
+    
     // sample test: curl -X POST http://localhost:4000/v1/advances -d "InvoiceAmount=777" -d "CreditorTaxId=AAABBBCCC"  -d "DebtorTaxId=AAABBBCCC" -d 'CollectionData={"aaa":"bbb","ccc":"ddd"}'
     post: function () { // TODO add InvoiceMaturity & OfferDate
         let doc = {};
@@ -155,7 +156,7 @@ Api.addRoute('advances', {}, {
             'InvoiceNumber','PaymentMethodId','PaymentMethodName'];
         loop(stringFields, function (value) {return value} );
         
-        let objectFields = ['CollectionData','InvoiceData','CreditorData','DebtorData'];
+        let objectFields = ['CollectionData','InvoiceData','UserData','CreditorData','DebtorData'];
         loop(objectFields, function (value) {return JSON.parse(value)} );
         
         doc['InvoiceAmount'] = Number(params.InvoiceAmount);
