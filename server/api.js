@@ -15,6 +15,22 @@ if (!settings['Local']['monthlyFactoringRate']) {
     console.log("MISSING SETTING Local monthlyFactoringRate");
 }
 
+if (!settings['Local']['widgets']['shortButton']) {
+    console.log("MISSING SETTING Local widgets shortButton");
+}
+
+if (!settings['Local']['widgets']['longButton']) {
+    console.log("MISSING SETTING Local widgets longButton");
+}
+
+if (!settings['Local']['widgets']['shortGreenStatus']) {
+    console.log("MISSING SETTING Local widgets shortGreenStatus");
+}
+
+if (!settings['Local']['widgets']['longGreenStatus']) {
+    console.log("MISSING SETTING Local widgets longGreenStatus");
+}
+
 // some utility functions
 
 function statusMessage(statusCode) {
@@ -37,6 +53,16 @@ function offerAmount(OfferDate, InvoiceMaturity, InvoiceAmount) {
     let OfferAmount = Math.round(InvoiceAmount * (1 - days * dailyRate));
     console.log("invoice amount " + InvoiceAmount + " days " + days + " daily rate " + dailyRate + " --> offer amount " + OfferAmount);
     return OfferAmount;
+}
+
+function addOfferWidgets(doc) {
+    doc['shortWidget'] = settings['Local']['widgets']['shortButton'];
+    doc['longWidget'] = settings['Local']['widgets']['longButton']; 
+}
+
+function addAdvanceWidgets(doc) {
+    doc['shortWidget'] = settings['Local']['widgets']['shortGreenStatus'];
+    doc['longWidget'] = settings['Local']['widgets']['longGreenStatus'];
 }
 
 
@@ -67,8 +93,10 @@ Api.addRoute('settings', {}, {
 
 Api.addRoute('offers/:id', {}, {
     get: { 
-        action: function () {
-            return {status: 'success', data: Offers.findOne(this.urlParams.id)};
+        action: function () {     
+            let doc = Offers.findOne(this.urlParams.id);
+            addOfferWidgets(doc);
+            return {status: 'success', data: doc};
       },
     }
 });
@@ -103,6 +131,7 @@ Api.addRoute('offers', {}, {
         // save offer & return it   
         let offerId = Offers.insert({InvoiceAmount, InvoiceMaturity, OfferAmount, OfferDate, Status});
         let offer = Offers.findOne({_id: offerId});
+        addOfferWidgets(offer);
         return {status: 'success', data: offer};
       },
   });
@@ -123,6 +152,7 @@ Api.addRoute('advances/:id', {}, {
                 apidoc[field] = doc[field];
             }
             apidoc['StatusMessage'] = statusMessage(doc['Status']);
+            addAdvanceWidgets(apidoc);
             return {status: 'success', data: apidoc};
       },
     }
@@ -183,6 +213,7 @@ Api.addRoute('advances', {}, {
         
         let advanceId = Advances.insert(doc);
         let advance = Advances.findOne({_id: advanceId});
+        addAdvanceWidgets(advance);
         return {status: 'success', data: advance};
     },
 });
